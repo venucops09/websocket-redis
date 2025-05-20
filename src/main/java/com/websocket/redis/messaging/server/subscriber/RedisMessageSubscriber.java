@@ -30,9 +30,10 @@ public class RedisMessageSubscriber implements MessageListener {
             String msgBody = new String(message.getBody());
             ChatMessage chatMessage = objectMapper.readValue(msgBody, ChatMessage.class);
             // Deliver to WebSocket subscribers
-            messagingTemplate.convertAndSend("/topic/user." + chatMessage.getTo(), chatMessage);
+            messagingTemplate.convertAndSendToUser(chatMessage.getTo(), "/queue/messages", chatMessage);
+            log.info("Message send to {}", chatMessage.getTo());
         } catch (Exception e) {
-            log.error("Error while sending message to user {}" , e.getMessage());
+            log.error("Error while sending message to user {}", e.getMessage());
         }
     }
 }
