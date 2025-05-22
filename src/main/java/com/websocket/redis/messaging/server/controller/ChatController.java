@@ -1,13 +1,11 @@
 package com.websocket.redis.messaging.server.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.websocket.redis.messaging.server.config.UserSessionRegistry;
 import com.websocket.redis.messaging.server.dto.ChatMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
@@ -25,6 +23,13 @@ public class ChatController {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private UserSessionRegistry userSessionRegistry;
+
 
     /**
      * Handles incoming chat messages sent by users over WebSocket.
@@ -44,4 +49,17 @@ public class ChatController {
         message.setFrom(principal.getName());
         redisTemplate.convertAndSend("chat", message);
     }
+
+    @MessageMapping("/request-online-users")
+    public void handleOnlineUserRequest(Principal principal) {
+        //Send updated list to current logged in user
+        if (principal != null) {
+            messagingTemplate.convertAndSendToUser(
+                    principal.getName(),
+                    "/queue/online-users",
+                    userSessionRegistry.getOnlineUsers()
+            );
+        }
+    }
+
 }

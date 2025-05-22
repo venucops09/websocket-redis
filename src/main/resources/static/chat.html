@@ -4,44 +4,180 @@
     <title>Chat</title>
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client/dist/sockjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f4f6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            padding: 20px 30px;
+        }
+
+        h3 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: 500;
+        }
+
+        select, input {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin: 8px 0 16px 0;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        ul#messages {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        ul#messages li {
+            background-color: #f1f1f1;
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        #popup {
+            display: none;
+            background-color: #fffae6;
+            border: 1px solid #ffeb3b;
+            padding: 12px 18px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.15);
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-<h3>Welcome to Chat</h3>
-<input id="to" placeholder="Send to user..." />
-<input id="content" placeholder="Message..." />
-<button onclick="sendMessage()">Send</button>
-<ul id="messages"></ul>
+<div class="container">
+    <h3>Welcome to Chat</h3>
+
+    <label>Send To:</label>
+    <select id="toUserDropdown"></select>
+
+    <input id="content" placeholder="Type your message..." />
+    <button onclick="sendMessage()">Send</button>
+
+    <h4>Messages:</h4>
+    <ul id="messages"></ul>
+</div>
+
+<div id="popup"></div>
 
 <script>
-        let stompClient = null;
+    let stompClient = null;
 
-        function connect() {
-            const socket = new SockJS('http://localhost:8080/ws');
-            stompClient = Stomp.over(socket);
-            stompClient.connect({}, function (frame) {
-                console.log("Connected: " + frame);
-                stompClient.subscribe('/user/queue/messages', function (msg) {
-                    const message = JSON.parse(msg.body);
-                    document.getElementById('messages').innerHTML += `<li>${message.from}: ${message.content}</li>`;
-                });
+    function connect() {
+        const socket = new SockJS('http://localhost:8080/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function (frame) {
+            console.log("Connected: " + frame);
+
+            stompClient.subscribe('/user/queue/messages', function (msg) {
+                const message = JSON.parse(msg.body);
+                showPopup(`${message.from}: ${message.content}`);
+                document.getElementById('messages').innerHTML += `<li><b>${message.from}</b>: ${message.content}</li>`;
             });
-        }
 
-        function sendMessage() {
+            stompClient.subscribe('/topic/online-users', function (msg) {
+                const users = JSON.parse(msg.body);
+                updateOnlineUserList(users);
+            });
 
-            const to = document.getElementById("to").value;
-            const content = document.getElementById("content").value;
+            stompClient.subscribe('/user/queue/online-users', function (msg) {
+                const users = JSON.parse(msg.body);
+                updateOnlineUserList(users);
+            });
 
-            const msg = {
-                from: "from",
-                to: to,
-                content: content
-            };
+            stompClient.send("/app/request-online-users", {});
+        });
+    }
 
-            stompClient.send("/app/send-message", {}, JSON.stringify(msg));
-        }
+    function sendMessage() {
+        const to = document.getElementById("toUserDropdown").value;
+        const content = document.getElementById("content").value;
 
-        connect();
-    </script>
+        const msg = {
+            from: "from",
+            to: to,
+            content: content
+        };
+
+        stompClient.send("/app/send-message", {}, JSON.stringify(msg));
+        document.getElementById("content").value = "";
+    }
+
+    function updateOnlineUserList(users) {
+        const dropdown = document.getElementById("toUserDropdown");
+        const currentUsername = getCurrentUsername();
+        dropdown.innerHTML = "";
+        users.forEach(user => {
+            if (user !== currentUsername) {
+                const option = document.createElement("option");
+                option.value = user;
+                option.text = user;
+                dropdown.appendChild(option);
+            }
+        });
+    }
+
+    function showPopup(message) {
+        const popup = document.getElementById("popup");
+        popup.innerText = message;
+        popup.style.display = "block";
+        setTimeout(() => {
+            popup.style.display = "none";
+        }, 4000);
+    }
+
+    function getCurrentUsername() {
+        return sessionStorage.getItem("username") || "unknown";
+    }
+
+    if (!sessionStorage.getItem("username")) {
+        const username = prompt("Enter your username (e.g., userA, userB):");
+        sessionStorage.setItem("username", username);
+    }
+
+    connect();
+</script>
 </body>
 </html>
