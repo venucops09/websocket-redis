@@ -2,10 +2,10 @@ package com.websocket.redis.messaging.server.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.websocket.redis.messaging.server.subscriber.RedisMessageSubscriber;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.listener.PatternTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
@@ -19,6 +19,9 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
  */
 @Configuration
 public class RedisConfig {
+
+    @Value("${redis.pubsub.channel}")
+    private String redisChannel;
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
@@ -51,7 +54,7 @@ public class RedisConfig {
 
         RedisMessageListenerContainer container = new RedisMessageListenerContainer();
         container.setConnectionFactory(connectionFactory);
-        container.addMessageListener(listenerAdapter, new PatternTopic("chat"));
+        container.addMessageListener(listenerAdapter, new PatternTopic(redisChannel));
         return container;
     }
 }

@@ -1,9 +1,10 @@
 package com.websocket.redis.messaging.server.controller;
 
-import com.websocket.redis.messaging.server.config.UserSessionRegistry;
 import com.websocket.redis.messaging.server.dto.ChatMessage;
+import com.websocket.redis.messaging.server.registry.UserSessionRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -30,6 +31,15 @@ public class ChatController {
     @Autowired
     private UserSessionRegistry userSessionRegistry;
 
+    private static final String SEND_MESSAGE = "/send-message";
+    private static final String REQUEST_ONLINE_USERS = "/request-online-users";
+
+    @Value("${redis.pubsub.channel}")
+    private String redisChannel;
+
+    @Value("${app.websocket.user.destination.queue}")
+    private String USER_DESTINATION_QUEUE;
+
 
     /**
      * Handles incoming chat messages sent by users over WebSocket.
@@ -43,20 +53,28 @@ public class ChatController {
      * @param message   the chat message received from the client
      * @param principal the currently authenticated user
      */
-    @MessageMapping("/send-message")      // Clients send to: /app/send-message
+    @MessageMapping(SEND_MESSAGE)      // Clients send to: /app/send-message
     public void sendMessage(ChatMessage message, Principal principal) {
-        log.info("Received in controller send-message");
         message.setFrom(principal.getName());
-        redisTemplate.convertAndSend("chat", message);
+        redisTemplate.convertAndSend(redisChannel, message);
     }
 
-    @MessageMapping("/request-online-users")
+    /**
+     * Handles a request from the client to fetch the current list of online users.
+     * <p>
+     * When a client sends a message to the {@code REQUEST_ONLINE_USERS} destination,
+     * this method sends the updated list of online users specifically to the requesting user.
+     * </p>
+     *
+     * @param principal the authenticated user making the request; used to send the response to the correct user
+     */
+    @MessageMapping(REQUEST_ONLINE_USERS)
     public void handleOnlineUserRequest(Principal principal) {
         //Send updated list to current logged in user
         if (principal != null) {
             messagingTemplate.convertAndSendToUser(
                     principal.getName(),
-                    "/queue/online-users",
+                    USER_DESTINATION_QUEUE,
                     userSessionRegistry.getOnlineUsers()
             );
         }

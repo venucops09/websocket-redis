@@ -1,4 +1,4 @@
-package com.websocket.redis.messaging.server.config;
+package com.websocket.redis.messaging.server.registry;
 
 import org.springframework.stereotype.Component;
 

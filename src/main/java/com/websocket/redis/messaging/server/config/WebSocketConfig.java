@@ -1,5 +1,6 @@
 package com.websocket.redis.messaging.server.config;
 
+import com.websocket.redis.messaging.server.dto.WebSocketProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
@@ -14,17 +15,35 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private final WebSocketProperties properties;
+
+    public WebSocketConfig(WebSocketProperties properties) {
+        this.properties = properties;
+    }
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
-                .withSockJS(); // Endpoint to connect
+        var endpointRegistration = registry.addEndpoint(properties.getEndpoint());
+
+        if (properties.getAllowedOrigins() != null && !properties.getAllowedOrigins().isEmpty()) {
+            String[] origins = properties.getAllowedOrigins().toArray(new String[0]);
+            endpointRegistration.setAllowedOriginPatterns(origins);
+        }
+
+        if (properties.isSockjsEnabled()) {
+            endpointRegistration.withSockJS();
+        }
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.setApplicationDestinationPrefixes("/app");  // Incoming messages go to @MessageMapping
-        registry.enableSimpleBroker("/topic", "/queue");   // Outgoing messages to clients
-        registry.setUserDestinationPrefix("/user");
+        if (properties.getApplicationDestinationPrefixes() != null) {
+            registry.setApplicationDestinationPrefixes(properties.getApplicationDestinationPrefixes().toArray(new String[0]));
+        }
+        if (properties.getBrokerDestinationPrefixes() != null) {
+            registry.enableSimpleBroker(properties.getBrokerDestinationPrefixes().toArray(new String[0]));
+        }
+        if (properties.getUserDestinationPrefix() != null) {
+            registry.setUserDestinationPrefix(properties.getUserDestinationPrefix());
+        }
     }
 }

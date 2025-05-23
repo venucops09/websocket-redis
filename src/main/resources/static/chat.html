@@ -169,12 +169,12 @@
     }
 
     function getCurrentUsername() {
-        return sessionStorage.getItem("username") || "unknown";
+        return localStorage.getItem("username") || "unknown";
     }
 
-    if (!sessionStorage.getItem("username")) {
+    if (!localStorage.getItem("username")) {
         const username = prompt("Enter your username (e.g., userA, userB):");
-        sessionStorage.setItem("username", username);
+        localStorage.setItem("username", username);
     }
 
     connect();
