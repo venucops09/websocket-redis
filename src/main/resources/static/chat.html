@@ -111,6 +111,11 @@
         stompClient.connect({}, function (frame) {
             console.log("Connected: " + frame);
 
+            // Optionally send heartbeat
+            setInterval(() => {
+                stompClient.send("/app/heartbeat", {});
+            }, 10000);
+
             stompClient.subscribe('/user/queue/messages', function (msg) {
                 const message = JSON.parse(msg.body);
                 showPopup(`${message.from}: ${message.content}`);
@@ -136,7 +141,6 @@
         const content = document.getElementById("content").value;
 
         const msg = {
-            from: "from",
             to: to,
             content: content
         };
@@ -169,12 +173,12 @@
     }
 
     function getCurrentUsername() {
-        return localStorage.getItem("username") || "unknown";
+        return sessionStorage.getItem("username") || "unknown";
     }
 
-    if (!localStorage.getItem("username")) {
+    if (!sessionStorage.getItem("username")) {
         const username = prompt("Enter your username (e.g., userA, userB):");
-        localStorage.setItem("username", username);
+        sessionStorage.setItem("username", username);
     }
 
     connect();

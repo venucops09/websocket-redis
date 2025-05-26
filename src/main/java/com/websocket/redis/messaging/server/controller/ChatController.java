@@ -1,5 +1,6 @@
 package com.websocket.redis.messaging.server.controller;
 
+import com.websocket.redis.messaging.server.config.ConnectionStateManager;
 import com.websocket.redis.messaging.server.dto.ChatMessage;
 import com.websocket.redis.messaging.server.registry.UserSessionRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -33,12 +34,16 @@ public class ChatController {
 
     private static final String SEND_MESSAGE = "/send-message";
     private static final String REQUEST_ONLINE_USERS = "/request-online-users";
+    private static final String HEARTBEAT = "/heartbeat";
 
     @Value("${redis.pubsub.channel}")
     private String redisChannel;
 
     @Value("${app.websocket.user.destination.queue}")
     private String USER_DESTINATION_QUEUE;
+
+    @Autowired
+    ConnectionStateManager connectionStateManager;
 
 
     /**
@@ -77,6 +82,25 @@ public class ChatController {
                     USER_DESTINATION_QUEUE,
                     userSessionRegistry.getOnlineUsers()
             );
+        }
+    }
+
+    /**
+     * Handles heartbeat messages sent by connected WebSocket clients.
+     * <p>
+     * This method is invoked when a message is received on the {@code /app/heartbeat} destination.
+     * It updates the user's last seen timestamp by delegating to the {@link ConnectionStateManager}.
+     * This helps maintain accurate connection state and is essential for tracking online users
+     * and detecting disconnections or timeouts.
+     * </p>
+     *
+     * @param principal the authenticated user sending the heartbeat message;
+     *                  may be {@code null} if the user is not authenticated.
+     */
+    @MessageMapping(HEARTBEAT)
+    public void handleHeartbeat(Principal principal) {
+        if (principal != null) {
+            connectionStateManager.onHeartbeatReceived(principal.getName());
         }
     }
 
